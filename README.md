@@ -419,3 +419,212 @@ Bagian ini berfungsi menampilkan pesan ke layar bahwa log aktivitas untuk penggu
 ### Isi File dari direktori backup
 ![image](https://github.com/user-attachments/assets/8cc04bba-7730-4238-bfc7-d85eb425ccf2)
 
+
+
+
+c. Code lengkap :
+```bash
+#!/bin/bash
+
+LOG_FILE="/home/aji-zaenul-musthofa/praktikum-modul-1-d10/task-2/access.log"
+CSV_FILE="/home/aji-zaenul-musthofa/praktikum-modul-1-d10/task-2/peminjaman_computer.csv"
+
+awk '$9 == 500 {print $1}' "$LOG_FILE" | sort | uniq -c > temp_500.log
+
+declare -A error_count
+
+
+while read jumlah ip; do
+    komputer=$(echo "$ip" | awk -F '.' '{print $4}')
+    pengguna=$(awk -v komputer="$komputer" -F, '$2 == komputer {print $3}' "$CSV_FILE")
+    if [ -n "$pengguna" ]; then
+        ((error_count[$pengguna]+=$jumlah)) 
+    fi
+done < temp_500.log
+
+rm temp_500.log 
+
+pemenang=$(for pengguna in "${!error_count[@]}"; do
+    echo "$pengguna ${error_count[$pengguna]}"
+done | sort -k2 -nr | head -n 1)
+
+nama=$(echo "$pemenang" | awk '{print $1}')
+jumlah=$(echo "$pemenang" | awk '{print $2}')
+
+if [ -n "$nama" ]; then
+    echo "Pemenang adalah $nama dengan total $jumlah error 500."
+else
+    echo "Tidak ada pengguna yang menghasilkan error 500."
+fi
+```
+
+Penjelasan :
+```bash
+#!/bin/bash
+```
+Baris pertama pada kode ini adalah shebang yang berfungsi sebagai tanda yang menunjukkan interpreter apa yang akan digunakan untuk menjalankan script ini. Dalam hal ini, script akan dijalankan menggunakan Bash, sebuah shell di sistem Linux/Unix.
+
+```bash
+LOG_FILE="/home/aji-zaenul-musthofa/praktikum-modul-1-d10/task-2/access.log"
+```
+Bagian ini berfungsi sebagai variabel LOG_FILE menyimpan path atau lokasi file log access.log.
+
+```bash
+CSV_FILE="/home/aji-zaenul-musthofa/praktikum-modul-1-d10/task-2/peminjaman_computer.csv"
+```
+
+Ini juga merupakan deklarasi variabel berfungsi menyimpan path dari file CSV peminjaman_computer.csv yang akan digunakan untuk mencari nama pengguna berdasarkan nomor komputer.
+
+```bash
+awk '$9 == 500 {print $1}' "$LOG_FILE" | sort | uniq -c > temp_500.log
+```
+Bagian ini berfungsi untuk membaca file log dan menampilkan IP address dari baris-baris yang memiliki status code 500 (yang terletak di kolom ke-9). Berikut adalah penjelasan lebih lanjut :
+- `awk`: Sebuah perintah yang digunakan untuk memproses dan memfilter teks atau data berdasarkan pola tertentu.
+- `''`: Digunakan untuk menyusun pola dan blok perintah yang diberikan kepada awk.
+- `$9` merujuk pada kolom ke-9 di setiap baris file log.
+- `{print $1}` berarti mencetak nilai dari kolom pertama (yaitu IP address) dari baris yang memenuhi syarat `$9 == 500`.
+- `"$LOG_FILE"` digunakan untuk memanggil variabel LOG_FILE, yang berisi path dari file log.
+
+- `| sort` berfungsi mengurutkan IP yang dihasilkan dari perintah awk secara alfabetis.
+  - `|`: Pipe. Ini digunakan untuk mengarahkan output dari satu perintah ke perintah lain.
+  - `sort`: Perintah untuk mengurutkan output secara alfabetis atau numeris.
+- `uniq -c`berfungsi menghapus duplikasi IP dan menghitung jumlah kemunculan masing-masing IP. Opsi `-c` digunakan untuk untuk menampilkan jumlah duplikat di sebelah kiri setiap IP.
+- `> temp_500.log` berfungsi untuk mengarahkan output yang dihasilkan oleh perintah sebelumnya ke file `temp_500.log`. Tanda `v` redirection operator ini digunakan untuk menulis output ke sebuah file, menggantikan isinya jika file tersebut sudah ada.
+
+```bash
+declare -A error_count
+```
+Bagian ini mendeklarasikan sebuah array asosiatif bernama `error_count`. Array asosiatif memungkinkan penggunaan string sebagai indeks (kunci). Berikut adalah penjelasan lebih lanjut :
+- `declare`: Digunakan untuk mendeklarasikan variabel Bash dengan opsi tambahan.
+- `-A`: Opsi untuk mendeklarasikan array asosiatif.
+- `error_count`: Nama array asosiatif yang akan digunakan untuk menyimpan jumlah error dari masing-masing pengguna.
+
+```bash
+while read jumlah ip; do
+    komputer=$(echo "$ip" | awk -F '.' '{print $4}')
+    pengguna=$(awk -v komputer="$komputer" -F, '$2 == komputer {print $3}' "$CSV_FILE")
+    if [ -n "$pengguna" ]; then
+        ((error_count[$pengguna]+=$jumlah)) 
+    fi
+done < temp_500.log
+```
+Loop ini membaca file `temp_500.log` dan memecah setiap baris menjadi dua variabel: `jumlah` dan `ip`. Kemudian, berdasarkan IP address, loop mencari nama pengguna komputer di file CSV dan menghitung jumlah error 500 yang ditemukan oleh pengguna tersebut. Berikut penjelasan per bagian :
+- `while read jumlah ip; do` membaca setiap baris file temp_500.log.
+- `read jumlah ip`:
+  - `jumlah`: Menyimpan jumlah status code 500 yang ditemukan oleh IP tersebut.
+  - `ip`: Menyimpan alamat IP dari baris yang sedang diproses.
+
+```bash
+komputer=$(echo "$ip" | awk -F '.' '{print $4}')
+```
+Bagian ini berfungsi mengekstrak angka terakhir dari IP address. Berikut penjelasan per bagian:
+- `echo "$ip"`: Menampilkan nilai variabel ip.
+- `|`: Pipe, untuk mengarahkan output dari echo ke awk.
+- `awk -F '.' '{print $4}'`:
+  - `-F '.'`: Menentukan pemisah kolom berupa tanda titik (.) pada IP address.
+  - `$4`: Mengacu pada kolom ke-4 (angka terakhir dari IP address).
+  - `{print $4}`: Mencetak angka keempat dari IP tersebut.
+
+
+ ```bash
+pengguna=$(awk -v komputer="$komputer" -F, '$2 == komputer {print $3}' "$CSV_FILE")
+```
+Bagian ini berfungsi untuk mencari nama pengguna berdasarkan nomor komputer di file CSV. Berikut adalah penjelasan per bagian:
+- `-v komputer="$komputer"`: Membuat variabel `komputer` di dalam `awk` yang nilainya sama dengan nilai variabel Bash `komputer`.
+- `-F,`: Menentukan pemisah kolom berupa tanda koma (,) di file CSV.
+- `$2 == komputer`: Membandingkan nilai kolom kedua (nomor komputer) dengan variabel `komputer`.
+- `{print $3}`: Mencetak kolom ketiga, yaitu nama pengguna komputer.
+
+```bash
+    if [ -n "$pengguna" ]; then
+        ((error_count[$pengguna]+=$jumlah)) 
+    fi
+```
+Blok ini mengecek apakah variabel pengguna tidak kosong :
+- `-n "$pengguna"`: Mengecek apakah string $pengguna tidak kosong.
+Jika pengguna ditemukan:
+- `((error_count[$pengguna]+=$jumlah))`:
+  - Menambahkan jumlah error 500 yang ditemukan oleh pengguna tersebut ke dalam array `error_count`.
+
+Fungsi dari `done < temp_500.log` adalah memberikan input ke loop `while` dari file `temp_500.log`. Dengan kata lain, file `temp_500.log` dibaca baris demi baris oleh loop `while` dan diproses satu per satu.
+Tanpa `done < temp_500.log`, loop `while` tidak akan menerima input dan tidak akan melakukan apapun.
+
+```bash
+rm temp_500.log
+```
+Perintah `rm temp_500.log` berfungsi untuk menghapus file log sementara yang telah digunakan dalam loop `while`.
+
+```bash
+pemenang=$(for pengguna in "${!error_count[@]}"; do
+    echo "$pengguna ${error_count[$pengguna]}"
+done | sort -k2 -nr | head -n 1)
+```
+Bagian kode ini digunakan untuk menentukan pengguna komputer yang menghasilkan jumlah status code 500 terbanyak dan menyimpannya ke dalam variabel `pemenang`. Berikut adalah penjelasan lebih lanjut :
+- pemenang=$() Fungsi ini digunakan untuk menyimpan output dari sebuah perintah (dalam hal ini, hasil dari loop dan sorting) ke dalam variabel pemenang. Substitution $() menjalankan semua perintah di dalamnya, kemudian hasil akhirnya disimpan ke variabel pemenang.
+- `for loop` digunakan untuk iterasi terhadap elemen dalam array associative `error_count`.
+- `${!error_count[@]}`:
+  - Bagian ini akan mengakses semua indeks (key) dari array associative `error_count`, yaitu daftar nama pengguna komputer.
+
+
+```bash
+echo "$pengguna ${error_count[$pengguna]}"
+```
+- Untuk setiap pengguna dalam array, perintah ini akan mencetak nama pengguna dan jumlah status code 500 yang ditemukan oleh pengguna tersebut.
+- `${error_count[$pengguna]}`: Mengakses nilai dari array associative `error_count` yang sesuai dengan key `$pengguna`.
+
+```bash
+done | sort -k2 -nr
+```
+- Pipe `|`: Mengarahkan output dari loop `for` (hasil `echo`) ke perintah `sort`.
+- `sort`: Perintah ini digunakan untuk mengurutkan hasil output berdasarkan jumlah error.
+  - `-k2`: Mengurutkan berdasarkan kolom ke-2 (jumlah error).
+  - `-n`: Melakukan sorting numerik.
+  - `-r`: Mengurutkan secara descending (dari nilai terbesar ke terkecil).
+
+```bash
+| head -n 1
+```
+`head -n 1` digunakan untuk mengambil baris pertama dari hasil sorting, yaitu pengguna dengan jumlah status code 500 terbanyak.
+Setelah seluruh proses selesai, hasilnya akan disimpan ke dalam variabel `pemenang`.
+
+```bash
+nama=$(echo "$pemenang" | awk '{print $1}')
+jumlah=$(echo "$pemenang" | awk '{print $2}')
+```
+Bagian ini digunakan untuk memisahkan nama pengguna dan jumlah error 500 dari variabel `pemenang` dan menyimpannya masing-masing ke dalam variabel `nama` dan `jumlah`. Penjelasan detailnya:
+- `nama=$( ... )`:
+  - Menggunakan Command Substitution untuk menyimpan hasil eksekusi perintah di dalam kurung `$()` ke variabel `nama`.
+- `echo "$pemenang"` perintah ini akan mencetak nilai dari variabel pemenang ke terminal.
+- `|` (Pipe) digunakan untuk mengalihkan output dari perintah sebelumnya ke perintah berikutnya.
+
+- `awk '{print $1}'` Perintah ini menggunakan`awk`, yaitu tool pemrosesan teks untuk memproses data baris demi baris.
+  - `{print $1}` berarti mencetak kolom pertama dari input.
+- Hasil dari `awk` kemudian disimpan ke variabel nama.
+
+- `jumlah=$(echo "$pemenang" | awk '{print $2}')` bagian ini sama seperti sebelumnya, menggunakan Command Substitution untuk menyimpan hasil dari perintah di dalam $() ke variabel jumlah.
+
+```bash
+if [ -n "$nama" ]; then
+    echo "Pemenang adalah $nama dengan total $jumlah error 500."
+else
+    echo "Tidak ada pengguna yang menghasilkan error 500."
+fi
+```
+Bagian ini adalah sebuah struktur kontrol `if-else` yang digunakan untuk mengecek apakah variabel `nama` memiliki nilai (tidak kosong) dan memberikan output berdasarkan hasil pengecekan tersebut. Berikut penjelasan lebih detail :
+- `if [ -n "$nama" ]; then`:
+  - `-n` adalah opsi dalam perintah `test` (di dalam `[ ]`) yang berarti "cek apakah string memiliki panjang lebih dari 0".
+  - `"$nama"` adalah string yang dicek. Jika `nama` tidak kosong, perintah dalam blok `then` akan dieksekusi.
+```bash
+echo "Pemenang adalah $nama dengan total $jumlah error 500."
+```
+Jika pengecekan bernilai true (variabel `nama` tidak kosong), baris ini akan mencetak nama pemenang beserta jumlah error 500 yang dihasilkan.
+- `else` bagian ini akan dieksekusi jika `if` menghasilkan false (variabel `nama` kosong).
+```bash
+echo "Tidak ada pengguna yang menghasilkan error 500."
+```
+Jika tidak ada pemenang (karena tidak ada pengguna dengan error 500), pesan ini akan dicetak.
+- `fi`menandakan akhir dari blok `if-else`.
+
+
+### Foto Hasil Output
+![image](https://github.com/user-attachments/assets/2bcc499d-a6cb-4fbd-9bba-87284f9d6195)

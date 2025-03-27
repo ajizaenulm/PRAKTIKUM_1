@@ -42,7 +42,7 @@ c. Rudi ingin memberikan hadiah kepada temannya yang sudah membantu. Namun karen
 
 ### Penyelesaian
 
-a. Code Lengkap
+a. Code lengkap :
 
 ```bash
 #!/bin/bash
@@ -122,3 +122,136 @@ awk '{print $9}' "$LOG_PATH" | sort | uniq -c | sort -nr
 - Double quote `(")`	: Karakter `$`, `, dan \ dalam double quote dapat digunakan sebagaimana fungsinya di shell.
 ### Foto Hasil Output
 ![image](https://github.com/user-attachments/assets/dba11e8a-7dad-4694-99d0-075a63ffca73)
+
+
+b. Code lengkap :
+```bash
+#!/bin/bash
+
+ACCESS_LOG="/home/aji-zaenul-musthofa/praktikum-modul-1-d10/task-2/access.log"
+PEMINJAMAN_CSV="/home/aji-zaenul-musthofa/praktikum-modul-1-d10/task-2/peminjaman_computer.csv"
+BACKUP_DIR="/home/aji-zaenul-musthofa/backup"
+
+convert_date() {
+    input_date="$1"
+    month=$(echo "$input_date" | cut -d'/' -f1)
+    day=$(echo "$input_date" | cut -d'/' -f2)
+    year=$(echo "$input_date" | cut -d'/' -f3)
+
+    months=(Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec)
+    month_name=${months[$((month - 1))]}
+
+    echo "$day/$month_name/$year"
+}
+
+read -p "Masukkan tanggal (MM/DD/YYYY): " INPUT_DATE
+read -p "Masukkan IP Address (192.168.1.X): " INPUT_IP
+
+LOG_DATE=$(convert_date "$INPUT_DATE")
+
+PC_NUMBER=$(echo "$INPUT_IP" | awk -F'.' '{print $4}')
+
+USER_NAME=$(awk -F',' -v date="$INPUT_DATE" -v pc="$PC_NUMBER" '$1 == date && $2 == pc {print $3}' "$PEMINJAMAN_CSV")
+
+if [[ -z "$USER_NAME" ]]; then
+    echo "Data yang kamu cari tidak ada."
+    exit 1
+fi
+
+echo "Pengguna saat itu adalah $USER_NAME"
+
+LOG_RESULT=$(grep "$LOG_DATE" "$ACCESS_LOG" | grep "$INPUT_IP")
+
+if [[ -z "$LOG_RESULT" ]]; then
+    echo "Tidak ada aktivitas yang ditemukan untuk pengguna ini."
+    exit 1
+fi
+
+FORMATTED_LOG=$(echo "$LOG_RESULT" | awk '{
+    split($4, waktu, ":");
+    tanggal = substr(waktu[1], 2);
+    jam = waktu[2];
+    menit = waktu[3];
+    detik = waktu[4];
+
+    method = substr($6, 2);
+    endpoint = $7;
+    status = $9;
+
+    printf "[%s:%s:%s:%s]: %s - %s - %s\n", tanggal, jam, menit, detik, method, endpoint, status;
+}')
+
+mkdir -p "$BACKUP_DIR"
+
+TIMESTAMP=$(date +"%H%M%S")
+BACKUP_FILE="$BACKUP_DIR/${USER_NAME}_$(echo $INPUT_DATE | tr -d '/')_${TIMESTAMP}.log"
+
+echo "$FORMATTED_LOG" > "$BACKUP_FILE"
+
+echo "Log Aktivitas $USER_NAME"
+```
+Penjelasan :
+```bash
+#!/bin/bash
+```
+Baris pertama pada kode ini adalah shebang yang berfungsi sebagai tanda yang menunjukkan interpreter apa yang akan digunakan untuk menjalankan script ini. Dalam hal ini, script akan dijalankan menggunakan Bash, sebuah shell di sistem Linux/Unix.
+
+```bash
+ACCESS_LOG="/home/aji-zaenul-musthofa/praktikum-modul-1-d10/task-2/access.log"
+```
+Mendefinisikan variabel ACCESS_LOG yang berisi path lengkap menuju file access.log.
+```bash
+PEMINJAMAN_CSV="/home/aji-zaenul-musthofa/praktikum-modul-1-d10/task-2/peminjaman_computer.csv"
+```
+Mendefinisikan variabel PEMINJAMAN_CSV yang berisi path ke file peminjaman_computer.csv.
+```bash
+BACKUP_DIR="/home/aji-zaenul-musthofa/backup"
+```
+Mendefinisikan variabel BACKUP_DIR yang menyimpan path ke direktori tempat file backup log akan disimpan.
+
+```bash
+convert_date() {
+    input_date="$1"
+    month=$(echo "$input_date" | cut -d'/' -f1)
+    day=$(echo "$input_date" | cut -d'/' -f2)
+    year=$(echo "$input_date" | cut -d'/' -f3)
+
+    months=(Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec)
+    month_name=${months[$((month - 1))]}
+
+    echo "$day/$month_name/$year"
+}
+```
+Fungsi convert_date bertugas mengonversi format tanggal dari MM/DD/YYYY (misalnya "01/17/2025") menjadi format dd/Mon/yyyy (misalnya "17/Jan/2025"). Berikut adalah penjelasannya :
+- `input_date="$1"` berfungsi mengambil argumen pertama yang diberikan ke fungsi dan menyimpannya ke variabel input_date.
+  Catatan: Tanda $1 menunjukkan argumen pertama.
+- `month=$(echo "$input_date" | cut -d'/' -f1)
+day=$(echo "$input_date" | cut -d'/' -f2)
+year=$(echo "$input_date" | cut -d'/' -f3)
+` mempunyai fungsi masing-masing, yaitu :
+  - `echo "$input_date"`untuk menampilkan nilai dari `input_date`.
+  - Pipa `|` untuk mengalirkan output dari `echo` ke perintah berikutnya.
+  - `cut -d'/' -f1` :
+    - `cut` perintah untuk memotong (extract) bagian dari string.
+    - `-d'/'` menentukan bahwa pemisah (delimiter) adalah karakter garis miring (`/`).
+    - `-f1` untuk mengambil field pertama (yaitu bulan).
+  - `-f2` dan `-f3` sama seperti `-f1`, namun mengambil field kedua (hari) dan ketiga (tahun).
+
+```bash
+    months=(Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec)
+    month_name=${months[$((month - 1))]}
+```
+- `months=(...)` untuk mendefinisikan array bernama months yang berisi singkatan nama bulan dari Januari hingga Desember.
+- `month_name=${months[$((month - 1))]}`
+  - `$((month - 1))` melakukan perhitungan aritmatika untuk mendapatkan indeks array. Karena indeks array dimulai dari 0, maka nilai bulan (misalnya 1 untuk Januari) harus dikurangi 1.
+  - `${months[...]}` untuk mengambil elemen dari array months pada indeks yang sudah dihitung.
+  - Tanda `$` dan `{}` :
+    - `$` untuk mengakses nilai variabel.
+    - `{}` berguna agar Bash mengetahui batas variabel yang diakses.
+    - `[...]` mengindikasikan akses ke elemen array pada indeks tertentu.
+- `echo "$day/$month_name/$year"` berfungsi untuk mencetak hasil tanggal dalam format dd/Mon/yyyy dan tanda double quote (`""`) untuk menjaga agar spasi atau karakter khusus tidak dipisah dan agar variabel dapat dievaluasi (nilai variabel akan digantikan dengan isinya).
+
+
+
+
+

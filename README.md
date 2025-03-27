@@ -251,6 +251,112 @@ year=$(echo "$input_date" | cut -d'/' -f3)
     - `[...]` mengindikasikan akses ke elemen array pada indeks tertentu.
 - `echo "$day/$month_name/$year"` berfungsi untuk mencetak hasil tanggal dalam format dd/Mon/yyyy dan tanda double quote (`""`) untuk menjaga agar spasi atau karakter khusus tidak dipisah dan agar variabel dapat dievaluasi (nilai variabel akan digantikan dengan isinya).
 
+```bash
+read -p "Masukkan tanggal (MM/DD/YYYY): " INPUT_DATE
+```
+Bagian ini berfungsi sebagai pengambilan input dari pengguna. Berikut adalah penjelasannya :
+- `read` berfungsi membaca input dari pengguna.
+- Opsi `-p` berfungsi menampilkan prompt (teks pesan) kepada pengguna.
+- Teks dalam tanda kutip (`"Masukkan tanggal (MM/DD/YYYY): "`) berfungsi sebagai teks promt yang akan dilihat oleh pengguna.
+- `INPUT_DATE` adalah variabel yang akan menyimpan input pengguna.
+```bash
+read -p "Masukkan IP Address (192.168.1.X): " INPUT_IP
+```
+Sama seperti di atas, namun meminta IP Address dari pengguna dan menyimpannya di variabel `INPUT_IP`.
+
+```bash
+LOG_DATE=$(convert_date "$INPUT_DATE")
+```
+Bagian ini berfungsi memanggil fungsi `convert_date` dengan `INPUT_DATE` sebagai argumen, dan menyimpan hasil konversi (tanggal dalam format dd/Mon/yyyy) ke variabel `LOG_DATE`. Bagian `$(...)` untuk substitusi perintah yang menjalankan perintah di dalamnya dan mengembalikan outputnya.
+
+```bash
+PC_NUMBER=$(echo "$INPUT_IP" | awk -F'.' '{print $4}')
+```
+Bagian ini berfungsi mengekstrak nomor komputer dari IP Address. Berikut penjelasan per bagian :
+- `echo "$INPUT_IP"` untuk mencetak IP Address yang diberikan pengguna.
+- Pipa `|` untuk mengalirkan output dari echo ke perintah awk.
+- `awk -F'.' '{print $4}'` :
+  - `-F'.'` untuk menetapkan pemisah (delimiter) sebagai titik (`.`) sehingga IP Address dipisahkan menjadi empat bagian.
+  - `'{print $4}'` perintah untuk mencetak bagian keempat (misalnya, jika IP adalah "192.168.1.2", maka outputnya adalah "2").
+- Hasilnya akan disimpan pada variabel `PC_NUMBER`.
+
+
+```bash
+USER_NAME=$(awk -F',' -v date="$INPUT_DATE" -v pc="$PC_NUMBER" '$1 == date && $2 == pc {print $3}' "$PEMINJAMAN_CSV")
+```
+Bagian ini berfungsi untuk mencari dan mengambil nama pengguna dari file CSV. Berikut ini adalah penjelasan per bagian :
+- `awk -F','` untuk menetapkan pemisah field (delimiter) sebagai koma, sesuai format CSV.
+- `-v date="$INPUT_DATE"` mendefinisikan variabel `date` di dalam program awk dengan nilai dari `INPUT_DATE`.
+- `-v pc="$PC_NUMBER"` mendefinisikan variabel `pc` di dalam awk dengan nilai dari `PC_NUMBER`.
+- `'$1 == date && $2 == pc {print $3}'` :
+  - `$1` field pertama dari CSV.
+  - `$2` field pertama dari CSV.
+  - `$3` field pertama dari CSV.
+  - Jika field pertama sama dengan date dan field kedua sama dengan pc, maka perintah awk akan mencetak field ketiga.
+- `"$PEMINJAMAN_CSV"` menunjukkan file CSV yang akan diproses.
+Kemudian hasilnya disimpan di variabel `USER_NAME`.
+
+```bash
+if [[ -z "$USER_NAME" ]]; then
+    echo "Data yang kamu cari tidak ada."
+    exit 1
+fi
+```
+Bagian ini berfungsi untuk mengecek data pengguna ada atau tidak. Berikut adalah penjelasan per bagian :
+- `if [[ -z "$USER_NAME" ]]` :
+  - `[[ ... ]]` digunakan untuk evaluasi kondisi.
+  - `-z "$USER_NAME"` mengecek apakah string dalam variabel `USER_NAME` kosong (tidak ada data).
+- `then` menandai awal blok perintah yang akan dijalankan jika kondisi benar.
+- `echo "Data yang kamu cari tidak ada."` mencetak pesan error bahwa data tidak ditemukan.
+- `exit 1` menghentikan skrip dengan kode status 1 (menandakan adanya error).
+- `fi` digunakan untuk menutup blok dari `if`
+
+
+```bash
+echo "Pengguna saat itu adalah $USER_NAME"
+```
+Bagian ini berungsi untuk mencetak pesan ke terminal yang memberitahu siapa pengguna yang ditemukan, dengan menampilkan nilai dari variabel `USER_NAME`.
+
+
+```bash
+LOG_RESULT=$(grep "$LOG_DATE" "$ACCESS_LOG" | grep "$INPUT_IP")
+```
+Bagian ini berfungsi mencari baris pada file `access.log` yang mengandung tanggal (dalam format yang telah dikonversi) dan IP Address yang dimasukkan. Berikut adalah penjelasan per bagian :
+- `grep "$LOG_DATE" "$ACCESS_LOG"` mencari dan menampilkan baris-baris dalam file `ACCESS_LOG` yang memuat string `LOG_DATE`.
+- Pipa `|` mengalirkan output dari perintah `grep` pertama sebagai input untuk perintah `grep` kedua.
+- `grep "$INPUT_IP"` menyaring hasil agar hanya baris yang juga mengandung IP Address yang diberikan.
+- Hasilnya disimpan di variabel `LOG_RESULT`.
+
+```bash
+if [[ -z "$LOG_RESULT" ]]; then
+    echo "Tidak ada aktivitas yang ditemukan untuk pengguna ini."
+    exit 1
+fi
+```
+Bagian ini berfungsi untuk mengecek apakah variabel LOG_RESULT kosong. Jika kosong maka akan menampilkan bahwa tidak ada aktivitas log yang ditemukan, kemudian keluar dari skrip dengan `exit 1`.
+
+```bash
+FORMATTED_LOG=$(echo "$LOG_RESULT" | awk '{
+    split($4, waktu, ":");
+    tanggal = substr(waktu[1], 2);
+    jam = waktu[2];
+    menit = waktu[3];
+    detik = waktu[4];
+
+    method = substr($6, 2);
+    endpoint = $7;
+    status = $9;
+
+    printf "[%s:%s:%s:%s]: %s - %s - %s\n", tanggal, jam, menit, detik, method, endpoint, status;
+}')
+```
+
+Bagian ini berfungsi untuk mengambil hasil log (`LOG_RESULT`), memprosesnya dengan `awk` untuk memformat setiap baris log sesuai format yang diinginkan. Berikut adalah penjelasan lebih lanjut :
+- `echo "$LOG_RESULT"` mencetak log yang ditemukan.
+- Pipa `|` ke `awk` output dari `echo` dikirim ke `awk` untuk diproses.
+- 
+
+
 
 
 

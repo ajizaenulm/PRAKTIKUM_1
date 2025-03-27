@@ -419,10 +419,3 @@ Bagian ini berfungsi menampilkan pesan ke layar bahwa log aktivitas untuk penggu
 ### Isi File dari direktori backup
 ![image](https://github.com/user-attachments/assets/8cc04bba-7730-4238-bfc7-d85eb425ccf2)
 
-
-
-
-
-
-
-

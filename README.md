@@ -354,7 +354,72 @@ FORMATTED_LOG=$(echo "$LOG_RESULT" | awk '{
 Bagian ini berfungsi untuk mengambil hasil log (`LOG_RESULT`), memprosesnya dengan `awk` untuk memformat setiap baris log sesuai format yang diinginkan. Berikut adalah penjelasan lebih lanjut :
 - `echo "$LOG_RESULT"` mencetak log yang ditemukan.
 - Pipa `|` ke `awk` output dari `echo` dikirim ke `awk` untuk diproses.
-- 
+- Blok `awk` :
+  - `split($4, waktu, ":");` memecah kolom keempat (yang berisi waktu) menjadi array bernama waktu dengan delimiter titik dua (:).
+  - `tanggal = substr(waktu[1], 2);` mengambil substring dari elemen pertama array `waktu`. `substr(waktu[1], 2)` menghilangkan karakter pertama (biasanya tanda kurung `[`).
+  - `jam = waktu[2]; menit = waktu[3]; detik = waktu[4];` menyimpan komponen waktu ke variabel masing-masing.
+  - `method = substr($6, 2);` mengambil HTTP method dari kolom keenam. `substr($6, 2)` menghilangkan karakter pembuka (misalnya tanda kutip atau tanda kurung).
+  - `endpoint = $7;` menyimpan nilai endpoint dari kolom ketujuh.
+  - `status = $9;` menyimpan status code dari kolom kesembilan.
+  - `printf "[%s:%s:%s:%s]: %s - %s - %s\n", ...` Format string untuk mencetak hasil dalam format: `[tanggal:jam:menit:detik]: method - endpoint - status\n` memastikan setiap log berada di baris baru.
+- Substitusi `$(...)` Output dari seluruh perintah `awk` disimpan ke variabel `FORMATTED_LOG`.
+
+```bash
+mkdir -p "$BACKUP_DIR"
+```
+Bagian ini berfungsi membuat direktori backup jika belum ada. Berikut penjelasannya :
+- `mkdir`: Perintah untuk membuat direktori.
+- Opsi `-p`: Membuat parent directories jika belum ada dan tidak mengeluarkan error jika direktori sudah ada.
+- `"$BACKUP_DIR"`: Variabel yang berisi path direktori backup; tanda kutip memastikan spasi dalam nama path tertangani dengan benar.
+
+
+```bash
+TIMESTAMP=$(date +"%H%M%S")
+```
+Bagian ini berfungsi untuk mengambil waktu saat ini dengan format jam, menit, dan detik (misalnya "142536" untuk jam 14:25:36). Berikut adalah penjelasannya :
+- `date +"%H%M%S"` perintah date dengan format string untuk menghasilkan waktu dalam format 24-jam.
+- Substitusi `$(...)` untuk menyimpan output ke variabel `TIMESTAMP`.
+
+```bash
+BACKUP_FILE="$BACKUP_DIR/${USER_NAME}_$(echo $INPUT_DATE | tr -d '/')_${TIMESTAMP}.log"
+```
+
+Bagian ini berfungsi untuk menentukan nama lengkap file backup yang akan disimpan. Berikut adalah penjelasan per bagian :
+- `$BACKUP_DIR/`: Path direktori backup.
+- `${USER_NAME}_`: Nama pengguna diikuti oleh garis bawah.
+  - `${USER_NAME}`: Menggunakan `{}` untuk memastikan bash mengakses variabel dengan benar.
+- `$(echo $INPUT_DATE | tr -d '/')`: Mengambil input tanggal dan menghapus semua karakter garis miring (/) sehingga format tanggal menjadi misalnya "01032025".
+  - `tr -d '/'`: Perintah untuk menghapus (`-d`) karakter `/`.
+- `_${TIMESTAMP}`: Menambahkan timestamp ke nama file.
+- `.log` adalah ekstensi file log.
+- Hasil akhir akan disimpan dengan format nama file seperti `Caca_01022025_213130.log`
+
+
+
+```bash
+echo "$FORMATTED_LOG" > "$BACKUP_FILE"
+```
+Bagian ini berfungsi mencetak (menulis) hasil log yang telah diformat ke file backup. Berikut adalah penjelasannya :
+- `echo "$FORMATTED_LOG"`: Mencetak output variabel `FORMATTED_LOG`.
+- `>` adalah operator redirection yang mengarahkan output ke file.
+- `"$BACKUP_FILE"`: Nama file tempat output akan disimpan.
+
+```bash
+echo "Log Aktivitas $USER_NAME"
+```
+Bagian ini berfungsi menampilkan pesan ke layar bahwa log aktivitas untuk pengguna yang bersangkutan telah diproses dan disimpan.
+
+
+### Foto Hasil Output
+![image](https://github.com/user-attachments/assets/c10f2c19-8f8a-4a52-9ab1-39964cf3922e)
+
+### Hasil File yang disimpan dalam direktori backup
+![image](https://github.com/user-attachments/assets/4eb8ac90-ebb6-4707-961b-2d96bcd4f281)
+
+### Isi File dari direktori backup
+![image](https://github.com/user-attachments/assets/8cc04bba-7730-4238-bfc7-d85eb425ccf2)
+
+
 
 
 
